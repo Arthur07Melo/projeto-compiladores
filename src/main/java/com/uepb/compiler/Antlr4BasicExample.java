@@ -2,6 +2,7 @@ package com.uepb.compiler;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -23,8 +24,10 @@ public class Antlr4BasicExample implements CompilerEngine{
 
         if(parser.getNumberOfSyntaxErrors() == 0){
             var calculadora = new Calculadora();
-            var resultado = calculadora.visitProg(tree);
-            System.out.println("Resultado: " + resultado);
+            calculadora.visitProg(tree);
+            var code = calculadora.getCode();
+            Files.writeString(output.toPath(), code);
+            System.out.println("Gerou o código");
         }
 
         if(verbose){
