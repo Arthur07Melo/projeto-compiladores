@@ -11,29 +11,31 @@ import com.uepb.ExprParser.ProgContext;
 import com.uepb.ExprParser.SomaSubContext;
 import com.uepb.ExprParser.UsoVariavelContext;
 
-public class Calculadora extends ExprBaseVisitor<Double>{
+public class Calculadora extends ExprBaseVisitor<Void>{
 
     private final ScopeControl stack = new ScopeControl();
+    private final MemoryMapper mapper = new MemoryMapper();
+    private final StringBuilder code = new StringBuilder();
 
     @Override
-    public Double visitProg(ProgContext ctx) {
+    public Void visitProg(ProgContext ctx) {
         return visit(ctx.expr());
     }
 
     @Override
-    public Double visitParenteses(ParentesesContext ctx) {
+    public Void visitParenteses(ParentesesContext ctx) {
         return visit(ctx.NESTED_EXPR);
     }
 
     @Override
-    public Double visitExponenciacao(ExponenciacaoContext ctx) {
+    public Void visitExponenciacao(ExponenciacaoContext ctx) {
         var base = visit(ctx.BASE);
         var expoente = visit(ctx.EXPOENTE);
         return Math.pow(base, expoente);
     }
 
     @Override
-    public Double visitMulDiv(MulDivContext ctx) {
+    public Void visitMulDiv(MulDivContext ctx) {
         var o1 = visit(ctx.O1);
         var o2 = visit(ctx.O2);
         var operador = ctx.OP.getText();
@@ -48,7 +50,7 @@ public class Calculadora extends ExprBaseVisitor<Double>{
     }
 
     @Override
-    public Double visitSomaSub(SomaSubContext ctx) {
+    public Void visitSomaSub(SomaSubContext ctx) {
         var o1 = visit(ctx.O1);
         var o2 = visit(ctx.O2);
         var operador = ctx.OP.getText();
@@ -56,20 +58,24 @@ public class Calculadora extends ExprBaseVisitor<Double>{
     }
 
     @Override
-    public Double visitNumero(NumeroContext ctx) {
+    public Void visitNumero(NumeroContext ctx) {
         var numero = ctx.NUMBER().getText();
         var sinal = ctx.SINAL;
-        var valor = Double.valueOf(numero);
 
         if(sinal != null && sinal.getText().equals("-")){
-            return -valor;
+            code.append("push -1\n");
+            code.append("push ").append(numero).append("\n");
+            code.append("mul\n");
+
+            return null;
         }
 
-        return valor;
+        code.append("push ").append(numero).append("\n");
+        return null;
     }
 
     @Override
-    public Double visitUsoVariavel(UsoVariavelContext ctx) {
+    public Void visitUsoVariavel(UsoVariavelContext ctx) {
         var nomeVar = ctx.ID().getText();
         var idSymbol = ctx.ID().getSymbol();
         var sinal = ctx.SINAL;
@@ -93,7 +99,7 @@ public class Calculadora extends ExprBaseVisitor<Double>{
     }
 
     @Override
-    public Double visitDeclVariavel(DeclVariavelContext ctx) {
+    public Void visitDeclVariavel(DeclVariavelContext ctx) {
         stack.createScope();
         visit(ctx.listaDeclaracao());
         var valor = visit(ctx.expr());
@@ -102,7 +108,7 @@ public class Calculadora extends ExprBaseVisitor<Double>{
     }
 
     @Override
-    public Double visitDeclaracao(DeclaracaoContext ctx) {
+    public Void visitDeclaracao(DeclaracaoContext ctx) {
         var varName = ctx.ID().getText();
         var idSymbol = ctx.ID().getSymbol();
         var currentScope = stack.getCurrentScope();

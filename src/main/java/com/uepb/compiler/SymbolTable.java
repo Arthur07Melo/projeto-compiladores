@@ -6,8 +6,8 @@ import java.util.Map;
 public class SymbolTable {
     private final Map<String, Variables> table = new HashMap<>();
 
-    public void insert(String name, Double value){
-        table.put(name, new Variables(name, value));
+    public void insert(String name, int address){
+        table.put(name, new Variables(name, address));
     }
 
     public boolean exists(String name){
