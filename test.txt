@@ -1,0 +1,23 @@
+RECEBA x = input
+RECEBA y = 20
+
+if x > y {
+    print(x-y)
+} else {
+    print(y-x)
+}
+
+
+RECEBA qntWhileLoops = input
+RECEBA currentLoop = 0
+
+while currentLoop != qntWhileLoops {
+    print(currentLoop)
+    RECEBA currentLoop = currentLoop + 1
+}
+
+RECEBA qntForLoops = input
+
+for (RECEBA i = 0; i < 3; RECEBA i = i + 1) {
+    print(i)
+}

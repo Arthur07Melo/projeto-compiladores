@@ -1,17 +1,23 @@
 package com.uepb.compiler;
 
 import com.uepb.ExprBaseVisitor;
-import com.uepb.ExprParser.AtribuicaoContext;
-import com.uepb.ExprParser.DeclVariavelContext;
-import com.uepb.ExprParser.DeclaracaoContext;
+import com.uepb.ExprParser.AtribuicaoStringContext;
+import com.uepb.ExprParser.AtribuicaoVarContext;
+import com.uepb.ExprParser.ComparacaoContext;
+import com.uepb.ExprParser.ForLoopContext;
+import com.uepb.ExprParser.IfElseContext;
 import com.uepb.ExprParser.InputContext;
-import com.uepb.ExprParser.LoopContext;
 import com.uepb.ExprParser.MulDivContext;
 import com.uepb.ExprParser.NumeroContext;
+import com.uepb.ExprParser.OutputContext;
 import com.uepb.ExprParser.ParentesesContext;
 import com.uepb.ExprParser.ProgContext;
 import com.uepb.ExprParser.SomaSubContext;
 import com.uepb.ExprParser.UsoVariavelContext;
+import com.uepb.ExprParser.WhileLoopContext;
+import com.uepb.ExprParser.AndLogicoContext;
+import com.uepb.ExprParser.OrLogicoContext;
+import com.uepb.ExprParser.NotLogicoContext;
 
 public class Calculadora extends ExprBaseVisitor<Void>{
 
@@ -32,9 +38,11 @@ public class Calculadora extends ExprBaseVisitor<Void>{
 
     @Override
     public Void visitProg(ProgContext ctx) {
-        visit(ctx.expr());
-        code.append("out\n");
-        code.append("hlt\n"); //EOF
+        scopes.createScope();
+        for (var expr : ctx.expr()) {
+            visit(expr);
+        }
+        code.append("hlt\n");
         return null;
     }
 
@@ -71,6 +79,61 @@ public class Calculadora extends ExprBaseVisitor<Void>{
             code.append("sub\n");
         }
 
+        return null;
+    }
+
+    @Override
+    public Void visitComparacao(ComparacaoContext ctx) {
+        visit(ctx.O1);
+        visit(ctx.O2);
+        var operador = ctx.OP.getText();
+
+        // For now, we'll use subtraction to simulate comparisons
+        // This is a simplified approach - you may need to adjust based on your pcode interpreter
+        switch(operador) {
+            case "==":
+                code.append("equ\n");
+                break;
+            case "!=":
+                code.append("neq\n");
+                break;
+            case "<":
+                code.append("let\n");
+                break;
+            case "<=":
+                code.append("leq\n");
+                break;
+            case ">":
+                code.append("grt\n");
+                break;
+            case ">=":
+                code.append("geq\n");
+                break;
+        }
+
+        return null;
+    }
+
+    @Override
+    public Void visitAndLogico(AndLogicoContext ctx) {
+        visit(ctx.O1);
+        visit(ctx.O2);
+        code.append("and\n");
+        return null;
+    }
+
+    @Override
+    public Void visitOrLogico(OrLogicoContext ctx) {
+        visit(ctx.O1);
+        visit(ctx.O2);
+        code.append("or\n");
+        return null;
+    }
+
+    @Override
+    public Void visitNotLogico(NotLogicoContext ctx) {
+        visit(ctx.O1);
+        code.append("not\n");
         return null;
     }
 
@@ -123,113 +186,187 @@ public class Calculadora extends ExprBaseVisitor<Void>{
     }
 
     @Override
-    public Void visitDeclVariavel(DeclVariavelContext ctx) {
-        scopes.createScope();
-        visit(ctx.listaDeclaracao());
-        visit(ctx.expr());
-        scopes.dropScope();
-
-        return null;
-    }
-
-    
-
-    @Override
-    public Void visitDeclaracao(DeclaracaoContext ctx) {
-        var varName = ctx.ID().getText();
-        var tk = ctx.ID().getSymbol();
-        var currentScope = scopes.getCurrentScope();
-        var address = mapper.alloc();
-
-        if(currentScope.exists(varName)){
-            throw new RuntimeException(
-                "A variavel '%s' presente na linha %d e coluna %d ja foi declarada."
-                .formatted(varName,tk.getLine(),tk.getCharPositionInLine())
-            );
-        }
-
-        code.append("push $").append(address).append("\n");
-        visit(ctx.expr());
-        currentScope.insert(varName, address);
-        code.append("sto\n");
-
-        return null;
-    }
-
-    @Override
     public Void visitInput(InputContext ctx) {
         code.append("in\n");
         return null;
     }
 
     @Override
-    public Void visitAtribuicao(AtribuicaoContext ctx) {
+    public Void visitOutput(OutputContext ctx) {
+        visit(ctx.expr());  // Evaluate the expression to print
+        code.append("out\n");
+        return null;
+    }
+
+    @Override
+    public Void visitAtribuicaoVar(AtribuicaoVarContext ctx) {
         var nomeVar = ctx.ID().getText();
-        var tk = ctx.ID().getSymbol();
+        var currentScope = scopes.getCurrentScope();
+
+        // Try to find existing variable
         var declaracaoOpt = scopes.lookup(nomeVar);
+        int address;
 
         if(declaracaoOpt.isEmpty()){
-            throw new RuntimeException(
-                "A variavel '%s' não foi declarada na linha %d e coluna %d."
-                .formatted(nomeVar,tk.getLine(),tk.getCharPositionInLine())
-            );
+            // Variable doesn't exist - allocate and declare it
+            address = mapper.alloc();
+            currentScope.insert(nomeVar, address);
+        } else {
+            // Variable exists - use its address
+            address = declaracaoOpt.get().address();
         }
-
-        var variavel = declaracaoOpt.get();
-        var address = variavel.address();
 
         code.append("push $").append(address).append("\n");
         visit(ctx.expr());
         code.append("sto\n");
 
+        return null;
+    }
+
+    @Override
+    public Void visitStringLiteral(com.uepb.ExprParser.StringLiteralContext ctx) {
+        var stringValor = ctx.STRING().getText();
+        // Remove quotes and push each character
+        var cleanString = stringValor.substring(1, stringValor.length() - 1);
+        
+        for (int i = 0; i < cleanString.length(); i++) {
+            code.append("push ").append((int)cleanString.charAt(i)).append("\n");
+        }
+        
+        return null;
+    }
+
+    @Override
+    public Void visitAtribuicaoString(AtribuicaoStringContext ctx) {
+        var nomeVar = ctx.ID().getText();
+        var stringValor = ctx.STRING().getText();
+        var currentScope = scopes.getCurrentScope();
+
+        // Try to find existing variable
+        var declaracaoOpt = scopes.lookup(nomeVar);
+        int address;
+
+        if(declaracaoOpt.isEmpty()){
+            // Variable doesn't exist - allocate and declare it
+            address = mapper.alloc();
+            currentScope.insert(nomeVar, address);
+        } else {
+            // Variable exists - use its address
+            address = declaracaoOpt.get().address();
+        }
+
+        // Remove quotes from string and store as individual characters
+        var cleanString = stringValor.substring(1, stringValor.length() - 1);
+        
+        // Store each character of the string
+        for (int i = 0; i < cleanString.length(); i++) {
+            code.append("push $").append(address + i).append("\n");
+            code.append("push ").append((int)cleanString.charAt(i)).append("\n");
+            code.append("sto\n");
+        }
+
+        // Store string length at the base address
         code.append("push $").append(address).append("\n");
-        code.append("lod").append("\n");
+        code.append("push ").append(cleanString.length()).append("\n");
+        code.append("sto\n");
 
         return null;
     }
 
     @Override
-    public Void visitLoop(LoopContext ctx) {
-        var start = createLabel();
-        var end = createLabel();
-        var marker = mapper.getCurrentAddress();
-        var n = mapper.alloc();
-        var i = mapper.alloc();
+    public Void visitIfElse(IfElseContext ctx) {
+        var elseLabel = createLabel();
+        var endLabel = createLabel();
 
-        code.append("push $").append(n).append("\n");
-        visit(ctx.N);
-        code.append("sto\n");
-
-        code.append("push $").append(i).append("\n");
-        code.append("push 0\n");
-        code.append("sto\n");
-
-        code.append(start).append(":").append("\n");
+        // Evaluate condition
+        visit(ctx.COND);
         
-        code.append("push $").append(i).append("\n");
-        code.append("lod\n");
-        code.append("push $").append(n).append("\n");
-        code.append("lod\n");
-        code.append("let\n");
+        // Jump to else if condition is false
+        code.append("fjp ").append(elseLabel).append("\n");
+        
+        // Execute then branch - iterate through all expressions
+        for (var thenExpr : ctx.THEN.expr()) {
+            visit(thenExpr);
+        }
+        
+        // Jump to end after then branch
+        code.append("ujp ").append(endLabel).append("\n");
+        
+        // Else branch
+        code.append(elseLabel).append(":\n");
+        if(ctx.ELSE != null) {
+            for (var elseExpr : ctx.ELSE.expr()) {
+                visit(elseExpr);
+            }
+        }
+        
+        // End label
+        code.append(endLabel).append(":\n");
 
-        code.append("fjp ").append(end).append("\n");
+        return null;
+    }
 
-        visit(ctx.CODE);
+    @Override
+    public Void visitWhileLoop(WhileLoopContext ctx) {
+        var startLabel = createLabel();
+        var endLabel = createLabel();
 
-        code.append("push $").append(i).append("\n");
-        code.append("push $").append(i).append("\n");
-        code.append("lod\n");
-        code.append("push 1\n");
-        code.append("add\n");
-        code.append("sto\n");
+        // Start label
+        code.append(startLabel).append(":\n");
+        
+        // Evaluate condition
+        visit(ctx.COND);
+        
+        // Jump to end if condition is false
+        code.append("fjp ").append(endLabel).append("\n");
+        
+        // Execute body - iterate through all expressions in loopBody
+        for (var bodyExpr : ctx.BODY.expr()) {
+            visit(bodyExpr);
+        }
+        
+        // Jump back to start
+        code.append("ujp ").append(startLabel).append("\n");
+        
+        // End label
+        code.append(endLabel).append(":\n");
 
-        code.append("ujp ").append(start).append("\n");
+        return null;
+    }
 
-        code.append(end).append(":").append("\n");
+    @Override
+    public Void visitForLoop(ForLoopContext ctx) {
+        var startLabel = createLabel();
+        var condLabel = createLabel();
+        var endLabel = createLabel();
 
-        visit(ctx.OUT);
-
-        mapper.restore(marker);
+        // Initialize
+        visit(ctx.INIT);
+        
+        // Jump to condition check
+        code.append("ujp ").append(condLabel).append("\n");
+        
+        // Start label (body)
+        code.append(startLabel).append(":\n");
+        
+        // Execute body - iterate through all expressions in loopBody
+        for (var bodyExpr : ctx.BODY.expr()) {
+            visit(bodyExpr);
+        }
+        
+        // Step/increment
+        visit(ctx.STEP);
+        
+        // Condition check
+        code.append(condLabel).append(":\n");
+        visit(ctx.COND);
+        code.append("fjp ").append(endLabel).append("\n");
+        
+        // Jump back to body
+        code.append("ujp ").append(startLabel).append("\n");
+        
+        // End label
+        code.append(endLabel).append(":\n");
 
         return null;
     }
