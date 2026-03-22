@@ -11,12 +11,10 @@ expr: '(' NESTED_EXPR=expr ')'                                                  
     | '!' O1=expr                                                                         #NotLogico
     | SINAL=('+'|'-')? NUMBER                                                             #Numero
     | SINAL=('+'|'-')? ID                                                                 #UsoVariavel
-    | STRING                                                                             #StringLiteral
     | 'if' COND=expr '{' THEN=loopBody '}' ('else' '{' ELSE=loopBody '}')?                        #IfElse
     | 'while' COND=expr '{' BODY=loopBody '}'                                             #WhileLoop
     | 'for' '(' INIT=atribuicaoVar ';' COND=expr ';' STEP=expr ')' '{' BODY=loopBody '}'  #ForLoop
     | atribuicaoVar                                                                       #Atribuicao
-    | atribuicaoString                                                                    #AtribuicaoStr
     | 'input'                                                                             #Input
     | 'print' '(' expr ')'                                                                #Output
 ;
@@ -24,9 +22,7 @@ expr: '(' NESTED_EXPR=expr ')'                                                  
 loopBody: (expr ';'?)+;
 
 atribuicaoVar: 'RECEBA' ID '=' expr;
-atribuicaoString: 'RECEBA' ID '=' STRING;
 
 NUMBER: [0-9]+('.'[0-9]+)?;
-STRING: '"' (~["\r\n] | '\\"')* '"';
 ID: [_a-zA-Z][_a-zA-Z0-9]*;
 WS: [ \r\n\t] -> skip;

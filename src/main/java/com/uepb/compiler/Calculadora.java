@@ -1,7 +1,6 @@
 package com.uepb.compiler;
 
 import com.uepb.ExprBaseVisitor;
-import com.uepb.ExprParser.AtribuicaoStringContext;
 import com.uepb.ExprParser.AtribuicaoVarContext;
 import com.uepb.ExprParser.ComparacaoContext;
 import com.uepb.ExprParser.ForLoopContext;
@@ -218,56 +217,6 @@ public class Calculadora extends ExprBaseVisitor<Void>{
 
         code.append("push $").append(address).append("\n");
         visit(ctx.expr());
-        code.append("sto\n");
-
-        return null;
-    }
-
-    @Override
-    public Void visitStringLiteral(com.uepb.ExprParser.StringLiteralContext ctx) {
-        var stringValor = ctx.STRING().getText();
-        // Remove quotes and push each character
-        var cleanString = stringValor.substring(1, stringValor.length() - 1);
-        
-        for (int i = 0; i < cleanString.length(); i++) {
-            code.append("push ").append((int)cleanString.charAt(i)).append("\n");
-        }
-        
-        return null;
-    }
-
-    @Override
-    public Void visitAtribuicaoString(AtribuicaoStringContext ctx) {
-        var nomeVar = ctx.ID().getText();
-        var stringValor = ctx.STRING().getText();
-        var currentScope = scopes.getCurrentScope();
-
-        // Try to find existing variable
-        var declaracaoOpt = scopes.lookup(nomeVar);
-        int address;
-
-        if(declaracaoOpt.isEmpty()){
-            // Variable doesn't exist - allocate and declare it
-            address = mapper.alloc();
-            currentScope.insert(nomeVar, address);
-        } else {
-            // Variable exists - use its address
-            address = declaracaoOpt.get().address();
-        }
-
-        // Remove quotes from string and store as individual characters
-        var cleanString = stringValor.substring(1, stringValor.length() - 1);
-        
-        // Store each character of the string
-        for (int i = 0; i < cleanString.length(); i++) {
-            code.append("push $").append(address + i).append("\n");
-            code.append("push ").append((int)cleanString.charAt(i)).append("\n");
-            code.append("sto\n");
-        }
-
-        // Store string length at the base address
-        code.append("push $").append(address).append("\n");
-        code.append("push ").append(cleanString.length()).append("\n");
         code.append("sto\n");
 
         return null;
