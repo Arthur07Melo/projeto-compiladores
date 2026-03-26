@@ -1,0 +1,1 @@
+java -jar target/compiler.jar -i=test_power.txt -o=test_power.pcode && java -jar pcode.jar -i=test_power.pcode

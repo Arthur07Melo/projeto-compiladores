@@ -36,7 +36,8 @@ push $3
 lod
 push $2
 lod
-neq
+equ
+not
 fjp L3
 push $3
 lod
@@ -74,4 +75,12 @@ let
 fjp L6
 ujp L4
 L6:
+push $6
+in
+sto
+push 10
+push $6
+lod
+pow
+out
 hlt

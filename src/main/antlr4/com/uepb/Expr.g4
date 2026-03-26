@@ -11,12 +11,13 @@ expr: '(' NESTED_EXPR=expr ')'                                                  
     | '!' O1=expr                                                                         #NotLogico
     | SINAL=('+'|'-')? NUMBER                                                             #Numero
     | SINAL=('+'|'-')? ID                                                                 #UsoVariavel
-    | 'if' COND=expr '{' THEN=loopBody '}' ('else' '{' ELSE=loopBody '}')?                        #IfElse
+    | 'if' COND=expr '{' THEN=loopBody '}' ('else' '{' ELSE=loopBody '}')?                #IfElse
     | 'while' COND=expr '{' BODY=loopBody '}'                                             #WhileLoop
     | 'for' '(' INIT=atribuicaoVar ';' COND=expr ';' STEP=expr ')' '{' BODY=loopBody '}'  #ForLoop
     | atribuicaoVar                                                                       #Atribuicao
     | 'input'                                                                             #Input
     | 'print' '(' expr ')'                                                                #Output
+    | O1=expr '^' O2=expr                                                                 #Exponenciacao
 ;
 
 loopBody: (expr ';'?)+;

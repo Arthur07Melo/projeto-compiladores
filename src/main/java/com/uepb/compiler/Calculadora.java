@@ -3,6 +3,7 @@ package com.uepb.compiler;
 import com.uepb.ExprBaseVisitor;
 import com.uepb.ExprParser.AtribuicaoVarContext;
 import com.uepb.ExprParser.ComparacaoContext;
+import com.uepb.ExprParser.ExponenciacaoContext;
 import com.uepb.ExprParser.ForLoopContext;
 import com.uepb.ExprParser.IfElseContext;
 import com.uepb.ExprParser.InputContext;
@@ -83,30 +84,41 @@ public class Calculadora extends ExprBaseVisitor<Void>{
 
     @Override
     public Void visitComparacao(ComparacaoContext ctx) {
-        visit(ctx.O1);
-        visit(ctx.O2);
         var operador = ctx.OP.getText();
 
-        // For now, we'll use subtraction to simulate comparisons
-        // This is a simplified approach - you may need to adjust based on your pcode interpreter
         switch(operador) {
             case "==":
+                visit(ctx.O1);
+                visit(ctx.O2);
                 code.append("equ\n");
                 break;
             case "!=":
-                code.append("neq\n");
+                visit(ctx.O1);
+                visit(ctx.O2);
+                code.append("equ\n");
+                code.append("not\n");
                 break;
             case "<":
+                visit(ctx.O1);
+                visit(ctx.O2);
                 code.append("let\n");
                 break;
             case "<=":
-                code.append("leq\n");
+                visit(ctx.O1);
+                visit(ctx.O2);
+                code.append("let\n");
+                code.append("not\n");
                 break;
             case ">":
+                visit(ctx.O1);
+                visit(ctx.O2);
                 code.append("grt\n");
                 break;
             case ">=":
-                code.append("geq\n");
+                visit(ctx.O1);
+                visit(ctx.O2);
+                code.append("grt\n");
+                code.append("not\n");
                 break;
         }
 
@@ -215,10 +227,79 @@ public class Calculadora extends ExprBaseVisitor<Void>{
             address = declaracaoOpt.get().address();
         }
 
-        code.append("push $").append(address).append("\n");
         visit(ctx.expr());
+        code.append("push $").append(address).append("\n");
         code.append("sto\n");
 
+        return null;
+    }
+
+    @Override
+    public Void visitExponenciacao(ExponenciacaoContext ctx) {
+        // Save current memory state
+        var memoryMarker = mapper.getCurrentAddress();
+        
+        // Allocate temporary memory addresses
+        var baseAddr = mapper.alloc();
+        var expAddr = mapper.alloc();
+        var resAddr = mapper.alloc();
+
+        var loopLabel = createLabel();
+        var endLabel = createLabel();
+
+        // Store exponent
+        code.append("push $").append(expAddr).append("\n");
+        visit(ctx.O2);
+        code.append("sto\n");
+
+        // Store base
+        code.append("push $").append(baseAddr).append("\n");
+        visit(ctx.O1);
+        code.append("sto\n");
+
+        // Initialize result = 1
+        code.append("push $").append(resAddr).append("\n");
+        code.append("push 1\n");
+        code.append("sto\n");
+
+        // Start loop
+        code.append(loopLabel).append(":\n");
+        
+        // Check if exponent == 0, jump to end if true
+        code.append("push $").append(expAddr).append("\n");
+        code.append("lod\n");
+        code.append("push 0\n");
+        code.append("equ\n");
+        code.append("tjp ").append(endLabel).append("\n");
+
+        // result = result * base
+        code.append("push $").append(resAddr).append("\n");
+        code.append("push $").append(resAddr).append("\n");
+        code.append("lod\n");
+        code.append("push $").append(baseAddr).append("\n");
+        code.append("lod\n");
+        code.append("mul\n");
+
+        code.append("sto\n");
+
+        // exponent = exponent - 1
+        code.append("push $").append(expAddr).append("\n");
+        code.append("push $").append(expAddr).append("\n");
+        code.append("lod\n");
+        code.append("push 1\n");
+        code.append("sub\n");
+        code.append("sto\n");
+
+        code.append("ujp ").append(loopLabel).append("\n");
+        code.append(endLabel).append(":\n");
+        
+        // Load final result
+        code.append("push $").append(resAddr).append("\n");
+        code.append("lod\n");
+        
+        // Restore memory state
+        mapper.restore(memoryMarker);
+        
         return null;
     }
 
